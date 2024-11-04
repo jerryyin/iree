@@ -101,4 +101,18 @@ iree_check_single_backend_test_suite(
     "requires-gpu-nvidia"
 )
 
+iree_check_single_backend_test_suite(
+  NAME
+    check_rocm_hip
+  SRCS
+    "conv2d.mlir"
+    "fp_to_subbyte.mlir"
+    "large_linalg_matmul.mlir"
+    "subbyte_to_fp.mlir"
+  TARGET_BACKEND
+    "rocm"
+  DRIVER
+    "hip"
+)
+
 ### BAZEL_TO_CMAKE_PRESERVES_ALL_CONTENT_BELOW_THIS_LINE ###

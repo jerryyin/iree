@@ -139,6 +139,28 @@ iree_check_single_backend_test_suite(
     target_backend = "cuda",
 )
 
+ROCM_HIP_SRCS = enforce_glob(
+    # keep sorted
+    [
+        "conv2d.mlir",
+        "fp_to_subbyte.mlir",
+        "subbyte_to_fp.mlir",
+        # currently only enabled on cuda as it can be slow on other backends.
+        "large_linalg_matmul.mlir",
+        #"narrow_n_matmuls.mlir",
+    ],
+    include = ["*.mlir"],
+    exclude = [
+    ],
+)
+
+iree_check_single_backend_test_suite(
+    name = "check_rocm_hip",
+    srcs = ROCM_HIP_SRCS,
+    driver = "hip",
+    target_backend = "rocm",
+)
+
 test_suite(
     name = "check",
     tests = [
