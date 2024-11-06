@@ -218,6 +218,7 @@ static LogicalResult canTargetIntrinsic(const GPUMatmulShapeType &problem,
          intrinsic.kSizes.size() == 1 &&
          "expected intrinsic to have a single M, N, and K dimension.");
   if (problem.aType != intrinsic.aType || problem.bType != intrinsic.bType) {
+    llvm::dbgs() << "mismatch:\n";
     return failure(); // Cannot use this intrinsic for mismatched types
   }
   if (problem.cType != intrinsic.cType) {
@@ -226,6 +227,7 @@ static LogicalResult canTargetIntrinsic(const GPUMatmulShapeType &problem,
     bool isUpcast = problem.cType.getIntOrFloatBitWidth() <
                     intrinsic.cType.getIntOrFloatBitWidth();
     if (!(canUpcastAcc && isFpCase && isUpcast)) {
+    llvm::dbgs() << "initrinsic ctype misalign:\n";
       return failure(); // Cannot use this intrinsic if not upcasting.
     }
   }
@@ -233,6 +235,10 @@ static LogicalResult canTargetIntrinsic(const GPUMatmulShapeType &problem,
   if (mustBeAligned && (problem.mSizes.back() % intrinsic.mSizes[0] != 0 ||
                         problem.nSizes.back() % intrinsic.nSizes[0] != 0 ||
                         problem.kSizes.back() % intrinsic.kSizes[0] != 0)) {
+    llvm::dbgs() << problem.mSizes.back() << " " << intrinsic.mSizes[0] << "\n";
+     llvm::dbgs() << problem.nSizes.back() << " " <<  intrinsic.nSizes[0]<< "\n";
+     llvm::dbgs() << problem.kSizes.back() << " " <<  intrinsic.kSizes[0]<< "\n";
+    llvm::dbgs() << "cannot divide:\n";
     return failure(); // Cannot use this intrinsic for misaligned cases.
   }
 
@@ -241,6 +247,7 @@ static LogicalResult canTargetIntrinsic(const GPUMatmulShapeType &problem,
   if (!mustBeAligned && (problem.mSizes.back() < intrinsic.mSizes[0] ||
                          problem.nSizes.back() < intrinsic.nSizes[0] ||
                          problem.kSizes.back() < intrinsic.kSizes[0])) {
+    llvm::dbgs() << "smaller :\n";
     return failure();
   }
 
@@ -381,6 +388,7 @@ FailureOr<GPUMMASchedule> deduceMMASchedule(
   for (auto [index, intrinsic] : llvm::enumerate(intrinsics)) {
     if (failed(canTargetIntrinsic(problem, intrinsic, canUpcastAcc,
                                   mustBeAligned))) {
+        llvm::dbgs() << "skipping\n";
       continue;
     }
 

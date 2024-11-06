@@ -112,16 +112,20 @@ getMmaScheduleFromProblemAndTarget(IREE::GPU::TargetAttr target,
                                    GPUMatmulShapeType problem,
                                    bool transposedLhs, bool transposedRhs) {
   const int64_t targetSubgroupSize = target.getPreferredSubgroupSize();
+  LDBG("target subgroup size" << targetSubgroupSize);
   SmallVector<GPUMatmulShapeType> intrinsics;
   for (IREE::GPU::MMAAttr mma : target.getWgp().getMma()) {
     auto [mSize, nSize, kSize] = mma.getMNKShape();
     auto [aType, bType, cType] = mma.getABCElementTypes();
+    LDBG("mma subgroup szie: " << mma.getSubgroupSize());
     if (mma.getSubgroupSize() != targetSubgroupSize)
       continue;
     intrinsics.emplace_back(mSize, nSize, kSize, aType, bType, cType);
   }
   if (intrinsics.empty())
     return std::nullopt;
+
+  LDBG("non empty");
 
   GPUMMAHeuristicSeeds seeds;
   assert(problem.aType == problem.bType &&
@@ -156,6 +160,7 @@ getMmaScheduleFromProblemAndTarget(IREE::GPU::TargetAttr target,
       deduceMMASchedule(problem, intrinsics, seeds, maxSharedMemoryBytes,
                         targetSubgroupSize, transposedLhs, transposedRhs);
   if (!schedule) {
+    LDBG("no schedule");
     // Then try again by allowing upcasting accumulator.
     schedule = deduceMMASchedule(
         problem, intrinsics, seeds, maxSharedMemoryBytes, targetSubgroupSize,
@@ -379,8 +384,10 @@ setIGEMMConvolutionLoweringConfig(IREE::GPU::TargetAttr target,
 LogicalResult setMatmulLoweringConfig(IREE::GPU::TargetAttr target,
                                       mlir::FunctionOpInterface entryPoint,
                                       Operation *op) {
+  LDBG("setMatmulLoweringConfig");
   auto linalgOp = dyn_cast<linalg::LinalgOp>(op);
   if (!linalgOp || !linalg::isaContractionOpInterface(linalgOp)) {
+    LDBG("Not contraction op");
     return failure();
   }
 

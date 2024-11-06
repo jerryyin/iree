@@ -2094,11 +2094,22 @@ static LogicalResult setRootConfig(IREE::GPU::TargetAttr target,
     return success();
   }
   if (clGPUTestTileAndFuseMatmul) {
-    if (succeeded(IREE::GPU::setMatmulLoweringConfig(target, entryPointFn,
-                                                     computeOp))) {
-      LDBG("Tile and fuse matmul config");
-      return success();
-    }
+#ifndef NDEBUG
+    llvm::dbgs() << "Assertions are enabled.\n";
+#else
+    llvm::dbgs() << "Assertions are disabled.\n";
+#endif
+    LLVM_DEBUG(DBGS() << "<debug log>" << "\n");
+    LDBG("setMatmulLoweringConfig");
+    computeOp->print(llvm::dbgs(), OpPrintingFlags().skipRegions());
+    llvm::dbgs() << "\n";
+    auto ret = IREE::GPU::setMatmulLoweringConfig(target, entryPointFn, computeOp);
+    return ret;
+    //if (succeeded(IREE::GPU::setMatmulLoweringConfig(target, entryPointFn,
+    //                                                 computeOp))) {
+    //  LDBG("Tile and fuse matmul config");
+    //  return success();
+    //}
   }
   if (clLLVMGPUUseIgemm) {
     if (succeeded(IREE::GPU::setIGEMMConvolutionLoweringConfig(

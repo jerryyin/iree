@@ -72,18 +72,21 @@ void LLVMGPUSelectLoweringStrategyPass::runOnOperation() {
   auto moduleOp = getOperation();
   for (auto funcOp : moduleOp.getOps<FunctionOpInterface>()) {
     if (failed(initGPULaunchConfig(funcOp))) {
+      llvm::dbgs() << "failing to init\n";
       return signalPassFailure();
     }
 
     IREE::Codegen::TranslationInfoAttr translationInfo =
         getTranslationInfo(funcOp);
     if (!translationInfo) {
+      llvm::dbgs() << "failing to translate\n";
       // Dont do anything if translation info is not set.
       return;
     }
 
     // Verify the properties of each entry point based on the target pipeline.
     if (failed(verifyEntryPoint(funcOp, translationInfo))) {
+      llvm::dbgs() << "failing to enter\n";
       return signalPassFailure();
     }
   }
