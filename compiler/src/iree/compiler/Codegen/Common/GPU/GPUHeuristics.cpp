@@ -48,9 +48,8 @@ static int64_t prod(ArrayRef<int64_t> values) {
   return ShapedType::getNumElements(values);
 }
 
-static int64_t calculateSharedMemoryUsedInBytes(const GPUMMASchedule &schedule,
-                                                int64_t lhsBitwidth,
-                                                int64_t rhsBitwidth) {
+static int64_t calculateOperandsSharedMemoryUsedInBytes(
+    const GPUMMASchedule &schedule, int64_t lhsBitwidth, int64_t rhsBitwidth) {
 
   int64_t tileM = schedule.mSize * prod(schedule.mTileSizes) *
                   prod(schedule.mSubgroupCounts);
@@ -58,6 +57,17 @@ static int64_t calculateSharedMemoryUsedInBytes(const GPUMMASchedule &schedule,
                   prod(schedule.nSubgroupCounts);
   int64_t tileK = schedule.kSize * prod(schedule.kTileSizes);
   return (tileM * tileK * lhsBitwidth + tileN * tileK * rhsBitwidth) / 8;
+}
+
+static int64_t
+calculateResultSharedMemoryUsedInBytes(const GPUMMASchedule &schedule,
+                                       int64_t resultBitwidth) {
+
+  int64_t tileM = schedule.mSize * prod(schedule.mTileSizes) *
+                  prod(schedule.mSubgroupCounts);
+  int64_t tileN = schedule.nSize * prod(schedule.nTileSizes) *
+                  prod(schedule.nSubgroupCounts);
+  return (tileM * tileN * resultBitwidth) / 8;
 }
 
 /// Check that a GPUMMASchedule fits alignment restrictions. To be aligned,
@@ -397,11 +407,15 @@ FailureOr<GPUMMASchedule> deduceMMASchedule(
           intrinsics[schedule.index].aType.getIntOrFloatBitWidth();
       int64_t rhsBitwidth =
           intrinsics[schedule.index].bType.getIntOrFloatBitWidth();
+      int64_t resultBitwidth =
+          intrinsics[schedule.index].cType.getIntOrFloatBitWidth();
       bool isAligned =
           isValidMMASchedule(problem, schedule, mustBeAligned, subgroupSize,
                              transposedLhs, transposedRhs);
       int64_t sharedMemoryUsed =
-          calculateSharedMemoryUsedInBytes(schedule, lhsBitwidth, rhsBitwidth);
+          calculateOperandsSharedMemoryUsedInBytes(schedule, lhsBitwidth,
+                                                   rhsBitwidth) +
+          calculateResultSharedMemoryUsedInBytes(schedule, resultBitwidth);
 
       LLVM_DEBUG({
         llvm::dbgs() << "Available Shared Memory: ";
@@ -475,10 +489,10 @@ FailureOr<GPUMMASchedule> deduceAttentionSchedule(
           intrinsics[schedule.index].aType.getIntOrFloatBitWidth();
       int64_t rhsBitwidth =
           intrinsics[schedule.index].bType.getIntOrFloatBitWidth();
-      int64_t sharedMemoryUsed =
-          calculateSharedMemoryUsedInBytes(qkSchedule, lhsBitwidth,
-                                           rhsBitwidth) +
-          calculateSharedMemoryUsedInBytes(schedule, lhsBitwidth, rhsBitwidth);
+      int64_t sharedMemoryUsed = calculateOperandsSharedMemoryUsedInBytes(
+                                     qkSchedule, lhsBitwidth, rhsBitwidth) +
+                                 calculateOperandsSharedMemoryUsedInBytes(
+                                     schedule, lhsBitwidth, rhsBitwidth);
 
       LLVM_DEBUG({
         llvm::dbgs() << "Available Shared Memory: ";
